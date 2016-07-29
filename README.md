@@ -9,7 +9,7 @@ $ casperjs gplsc --price='free' --search='irc' --top=10 >> app-list.txt
 ```
 
 # REQUIREMENTS
-* [CasperJS](http://casperjs.org/) >= 1.1.3 (which in turns requires [PhantomJS](http://phantomjs.org))
+* [CasperJS](http://casperjs.org/) >= 1.1.3 (which requires [PhantomJS](http://phantomjs.org))
 
 # INSTALLATION
 ```
