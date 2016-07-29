@@ -11,7 +11,7 @@ $ casperjs gplsc --price='free' --search='irc' --top=10
 # REQUIREMENTS
 * [CasperJS](http://casperjs.org/) >= 1.1.3 (which in turns requires [PhantomJS](http://phantomjs.org))
 
-# INSALLATION
+# INSTALLATION
 ```
 $ npm install -g phantomjs
 $ npm install -g casperjs
