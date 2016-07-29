@@ -1,0 +1,156 @@
+var casper = require('casper').create({
+  viewportSize: {
+    width: 1280,
+    height: 1024
+  },
+  pageSettings: {
+    webSecurityEnabled: false,
+    // TODO: generated slight variations of the UA strings
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.82 Safari/537.36"
+  }
+});
+
+var links = [];
+var price = casper.cli.get('price');
+var keyword = casper.cli.get('search');
+var topN = casper.cli.get('top');
+var timeout = 5000;
+var baseurl = 'https://play.google.com/store/search?c=apps';
+
+var retries = 0;
+var max_retries = 3;
+var scrolled = 0;
+var delta = 0;
+var scrollInc = 50;
+var scrollAdj = 10;
+
+function sY() {
+  return window.scrollY;
+}
+
+function geturl() {
+  baseurl = baseurl + '&q=' + keyword;
+
+  if (price === "free")
+    price = 1;
+  else if (price === "paid")
+    price = 2;
+  else
+    price = false;
+
+  if (price != false)
+    baseurl = baseurl + '&price=' + price;
+
+  if (topN == undefined)
+    topN = 10;
+
+  return baseurl;
+}
+
+function getLinks() {
+  var links = document.querySelectorAll('a.title');
+  return Array.prototype.map.call(links, function(e) {
+    return e.getAttribute('href').split('=')[1];
+  });
+}
+
+function slowScrollUp(casper) {
+  casper.log('^^^', 'debug');
+
+  casper.scrollTo(0, scrolled - scrollAdj);
+  pos = casper.evaluate(sY);
+  scrolled = pos;
+}
+
+function enoughResults(casper) {
+  var l = casper.evaluate(getLinks).length;
+
+  casper.log('Enough links found? (' + l + ')', 'debug');
+
+  return l >= topN;
+}
+
+function slowScrollDown(casper) {
+  casper.log('vvv', 'debug');
+
+  casper.scrollTo(0, scrolled + scrollInc);
+  pos = casper.evaluate(sY);
+  delta = scrolled - pos;
+  scrolled = pos;
+
+  casper.log('sY = ' + scrolled + ' (+' + delta + ')', 'debug');
+
+  if (!delta) {
+    if (retries == max_retries) {
+      casper.emit('bottom.reached');
+      retries = 0;
+      return;
+    } else {
+      casper.wait(700, function() {
+        slowScrollUp(casper);
+      });
+      retries += 1;
+    }
+  }
+
+  if (enoughResults(casper))
+    casper.emit('end.reached');
+  else
+    casper.wait(700, function(){
+      slowScrollDown(casper);
+    });
+}
+
+casper.start(geturl(), function() {
+  this.wait(timeout, function() {
+    this.waitUntilVisible(
+      '.copyright',
+      function then() {
+        this.wait(1000, function(){
+          this.emit('page.loaded');
+        });
+      },
+      function ontimeout() {
+        casper.log('Timeout!', 'debug');
+      },
+      1000);
+  });
+});
+
+casper.on('page.loaded', function() {
+  casper.log('Page loaded', 'debug');
+
+  if (enoughResults(this))
+    this.emit('end.reached');
+  else
+    slowScrollDown(this);
+});
+
+casper.on('bottom.reached', function() {
+  casper.log('Bottom reached', 'debug');
+
+  if (enoughResults(this))
+    this.emit('end.reached');
+  else {
+    if (this.visible('#show-more-button')) {
+      casper.log('Button is visible: there is more to load!', 'debug')
+
+      this.click('#show-more-button');
+      this.wait(300, function() {
+        slowScrollDown(this);
+      });
+    } else {
+      this.emit('end.reached');
+    }
+  }
+});
+
+casper.on('end.reached', function () {
+  casper.log('Dumping links...', 'debug');
+  links = this.evaluate(getLinks);
+});
+
+casper.run(function() {
+  this.echo(links.slice(0, topN).join('\n'));
+  this.exit();
+});
