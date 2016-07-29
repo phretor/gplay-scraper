@@ -5,7 +5,7 @@ search term, it returns a list of package names that match the search.
 ## For the Impatients
 
 ```
-$ casperjs gplsc --price='free' --search='irc' --top=10
+$ casperjs gplsc --price='free' --search='irc' --top=10 >> app-list.txt
 ```
 
 # REQUIREMENTS
